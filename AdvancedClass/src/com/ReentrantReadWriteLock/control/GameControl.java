@@ -27,7 +27,7 @@ public class GameControl {
 			Stock s = new Stock();
 			s.setPosition(new Point(60, i * (mapSize.height/Stock.getStockQuantity()) + 2));
 			s.setName("stock-"+i);
-			s.setStocklimit(100);
+			s.setStocklimit(25);
 			stocks.add(s);
 
 		}

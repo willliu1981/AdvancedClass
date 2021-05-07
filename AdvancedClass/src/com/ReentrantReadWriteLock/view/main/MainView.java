@@ -22,7 +22,6 @@ import com.ReentrantReadWriteLock.control.GameControl;
 import com.ReentrantReadWriteLock.control.Reentrant;
 import com.ReentrantReadWriteLock.control.ReentrantThread;
 import com.ReentrantReadWriteLock.control.Session;
-import com.ReentrantReadWriteLock.model.Stock;
 
 public class MainView extends JFrame {
 	static class Task extends TimerTask {
@@ -30,10 +29,11 @@ public class MainView extends JFrame {
 		public void run() {
 			Reentrant rent = (Reentrant) session.getAttribute("rent");
 			GameControl.getSupliers().forEach(x -> {
-				x.setProduce(x.getProduce() + x.getSpeed());
-				if (x.getProducePercent() >= 100) {
-					ReentrantThread.query(rent);
-					x.setProduce(0);
+				if ( !x.isAction() && x.getProducePercent() >= 100) {
+					x.setAction(true);
+					ReentrantThread.query(rent,x);
+				}else {
+					x.setProduce(x.getProduce() + x.getSpeed());
 				}
 			});
 

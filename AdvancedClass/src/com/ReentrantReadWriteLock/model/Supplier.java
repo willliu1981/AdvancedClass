@@ -12,6 +12,7 @@ public class Supplier {
 	private static final int maxProduce = 10000;// 完成最大值
 	private static int supplierQuantity;// 提供者數量
 	private List<Freight> freight = new ArrayList<>();// 派出的貨車
+	private boolean action=false;//是否執行過派車事件
 
 	public Point getPosition() {
 		return position;
@@ -73,6 +74,14 @@ public class Supplier {
 	 */
 	public int getProducePercent() {
 		return (int) (this.getProduce()*100 / this.getMaxProduce());
+	}
+
+	public boolean isAction() {
+		return action;
+	}
+
+	public void setAction(boolean action) {
+		this.action = action;
 	}
 
 }

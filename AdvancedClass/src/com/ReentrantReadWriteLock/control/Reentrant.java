@@ -32,11 +32,9 @@ public class Reentrant {
 	public Stock query() {
 		Stock stock = null;
 		rwl.readLock().lock();
-		System.out.println("reentrant query **" + stocks.size());
 
 		stock = stocks.stream().filter(x -> {
 			boolean r = x.getQuantity() < x.getStocklimit();
-			System.out.println("reentrant query **" + r);
 			return r;
 		}).findFirst().orElse(null);
 
@@ -46,11 +44,9 @@ public class Reentrant {
 	}
 
 	public void update(Stock stock) {
-		System.out.println("reentrant** ");
 		rwl.writeLock().lock();
 
 		stock.setQuantity(stock.getQuantity() + 1);
-		System.out.println("reentrant** " + stock.getQuantity());
 		sleep();
 		rwl.writeLock().unlock();
 	}
