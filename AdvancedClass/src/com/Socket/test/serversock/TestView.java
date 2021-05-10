@@ -15,9 +15,17 @@ import javax.swing.JLabel;
 import java.awt.Font;
 import java.awt.event.ActionListener;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Scanner;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.awt.event.ActionEvent;
 import javax.swing.JTextField;
 import javax.swing.JCheckBox;
@@ -26,6 +34,8 @@ import java.awt.Dimension;
 public class TestView extends JFrame {
 
 	public static final Session session = new Session();
+	public static final ExecutorService es = Executors.newCachedThreadPool();
+	public static final Map<TestSocketBean, Future> callables = new HashMap<>();
 	private TestSocketBean bean;
 	private JPanel contentPane;
 
@@ -38,8 +48,6 @@ public class TestView extends JFrame {
 				try {
 					TestView frame = new TestView();
 					frame.setVisible(true);
-
-					
 
 				} catch (Exception e) {
 					e.printStackTrace();
@@ -68,17 +76,22 @@ public class TestView extends JFrame {
 			public void actionPerformed(ActionEvent arg0) {
 				try (Socket sock = new Socket(bean.host, bean.port);
 						Scanner scanner = new Scanner(sock.getInputStream())) {
-					bean.feedback="";
+					System.out.println(" test start");
+					PrintWriter pw = new PrintWriter(sock.getOutputStream(), true);
+					pw.println("client_sent_,name_=" + bean.name);
+					System.out.println(" test print finish");
+					bean.feedback = "";
+					System.out.println(" test scan start");
 					while (scanner.hasNext()) {
 						String str = scanner.next();
 						bean.feedback += str + " ";
 					}
+					System.out.println(" test scan finish");
 
 					JLabel lblNewLabel_info = (JLabel) session.getAttribute("lblNewLabel_info");
-					System.out.println(String.format("Call1 %s : %d ,and get feedback = %s\n", bean.host, bean.port,
-							bean.feedback));
 					lblNewLabel_info.setText(String.format("Call1 %s : %d ,and get feedback = %s\n", bean.host,
 							bean.port, bean.feedback));
+					pw.close();
 
 				} catch (UnknownHostException e) {
 					e.printStackTrace();
@@ -96,11 +109,17 @@ public class TestView extends JFrame {
 		this.session.setAttribute("chckbxNewCheckBox_master", chckbxNewCheckBox_master);
 		panel_top.add(chckbxNewCheckBox_master);
 
-		JTextField textField_host = new JTextField();
-		this.session.setAttribute("textField_host", textField_host);
-		textField_host.setFont(new Font("新細明體", Font.PLAIN, 16));
-		panel_top.add(textField_host);
-		textField_host.setColumns(10);
+		JTextField textField_name = new JTextField();
+		this.session.setAttribute("textField_name", textField_name);
+		panel_top.add(textField_name);
+		textField_name.setColumns(10);
+
+		JTextField txtLocalhost = new JTextField();
+		txtLocalhost.setText("localhost");
+		this.session.setAttribute("textField_host", txtLocalhost);
+		txtLocalhost.setFont(new Font("新細明體", Font.PLAIN, 16));
+		panel_top.add(txtLocalhost);
+		txtLocalhost.setColumns(10);
 
 		JButton btnNewButton_start = new JButton("start");
 		btnNewButton_start.addActionListener(new ActionListener() {
@@ -108,9 +127,11 @@ public class TestView extends JFrame {
 				JCheckBox chckbxNewCheckBox_master = (JCheckBox) session.getAttribute("chckbxNewCheckBox_master");
 				JTextField textField_host = (JTextField) session.getAttribute("textField_host");
 				JTextField textField_port = (JTextField) session.getAttribute("textField_port");
+				JTextField textField_name = (JTextField) session.getAttribute("textField_name");
 				bean = new TestSocketBean(textField_host.getText(), Integer.valueOf(textField_port.getText()));
-				if(chckbxNewCheckBox_master.isSelected()) {
-					TestSocketServer testServer = new TestSocketServer(bean.port);
+				bean.name = textField_name.getText();
+				if (chckbxNewCheckBox_master.isSelected()) {
+					TestSocketServer testServer = new TestSocketServer2(bean.port);
 					Thread t = new Thread(testServer);
 					t.start();
 				}
@@ -128,25 +149,28 @@ public class TestView extends JFrame {
 		JButton btnNewButton_test2 = new JButton("test2");
 		btnNewButton_test2.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
-				try (Socket sock = new Socket(bean.host, bean.port);
-						Scanner scanner = new Scanner(sock.getInputStream())) {
-					bean.feedback="";
-					while (scanner.hasNext()) {
-						String str = scanner.next();
-						bean.feedback += str + " ";
-					}
+				JLabel lblNewLabel_info=(JLabel) session.getAttribute("lblNewLabel_info");
 
-					JLabel lblNewLabel_info = (JLabel) session.getAttribute("lblNewLabel_info");
-					System.out.println(String.format("Call2 %s : %d ,and get feedback = %s\n", bean.host, bean.port,
-							bean.feedback));
-					lblNewLabel_info.setText(String.format("Call2 %s : %d ,and get feedback = %s\n", bean.host,
-							bean.port, bean.feedback));
-
-				} catch (UnknownHostException e) {
+				TestSocketClientCallable callable=new TestSocketClientCallable(bean);
+				Future<TestSocketBean> future=es.submit(callable);
+				callables.put(bean, future);
+				
+				//es.shutdown();
+				try {
+					es.awaitTermination(5, TimeUnit.SECONDS);
+					
+				} catch (InterruptedException e) {
 					e.printStackTrace();
-				} catch (IOException e) {
+				} 
+				
+				Future<TestSocketBean> fu=callables.get(bean);
+				try {
+					bean=  fu.get();
+				} catch (InterruptedException | ExecutionException e) {
 					e.printStackTrace();
 				}
+				lblNewLabel_info.setText((String.format("Call1 %s : %d ,and get feedback = %s\n", bean.host,
+						bean.port, bean.feedback)));
 			}
 		});
 		panel.add(btnNewButton_test2);
